@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permit Map Editor Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+            --bg-light: #f8fafc; --bg-white: #fff; --text-dark: #1e293b; --text-light: #64748b;
+            --border: #cbd5e1; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 320px; background: var(--bg-white); box-shadow: var(--shadow); overflow-y: auto; z-index: 1000; }
+        .sidebar-header { padding: 24px; background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%); color: white; }
+        .sidebar-header h1 { font-size: 22px; margin-bottom: 4px; }
+        .sidebar-header p { font-size: 13px; opacity: 0.9; }
+        .sidebar-section { padding: 20px; border-bottom: 1px solid var(--border); }
+        .section-title { font-size: 12px; font-weight: 600; color: var(--text-light); text-transform: uppercase; 
+            letter-spacing: 0.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-dark); }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%; padding: 10px; font-size: 14px; border: 1px solid var(--border); border-radius: 6px;
+            margin-bottom: 12px; transition: border 0.2s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        textarea { resize: vertical; min-height: 80px; }
+        button { padding: 10px 16px; font-size: 14px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; } .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; } .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: white; } .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: var(--bg-light); color: var(--text-dark); } .btn-secondary:hover { background: #e2e8f0; }
+        .btn-full { width: 100%; margin-bottom: 8px; }
+        #main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
+        #search-container { padding: 16px 20px; background: var(--bg-white); box-shadow: var(--shadow); display: flex; gap: 12px; z-index: 999; }
+        #search-input { flex: 1; margin-bottom: 0; }
+        #map-container { flex: 1; position: relative; }
+        #map { height: 100%; width: 100%; }
+        #drawing-tools { position: absolute; top: 16px; right: 16px; background: var(--bg-white); padding: 12px;
+            border-radius: 12px; box-shadow: var(--shadow); z-index: 1000; }
+        .tool-section { margin-bottom: 12px; } .tool-section:last-child { margin-bottom: 0; }
+        .tool-section-label { font-size: 11px; font-weight: 600; color: var(--text-light); text-transform: uppercase;
+            margin-bottom: 8px; text-align: center; }
+        .tool-row { display: flex; gap: 6px; justify-content: center; }
+        .tool-btn { width: 44px; height: 44px; background: var(--bg-light); border: 2px solid transparent; border-radius: 8px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .tool-btn:hover { background: #e2e8f0; transform: translateY(-2px); }
+        .tool-btn.active { background: var(--primary); border-color: var(--primary); }
+        .tool-btn.active i { color: white; }
+        .tool-btn i { font-size: 18px; color: var(--text-dark); }
+        .color-picker-container { display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--bg-light); border-radius: 8px; }
+        input[type="color"] { width: 44px; height: 44px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; padding: 0; margin: 0; }
+        .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; 
+            background: var(--bg-light); border-radius: 8px; transition: all 0.2s; }
+        .legend-item:hover { background: #e2e8f0; }
+        .legend-color { width: 32px; height: 32px; border-radius: 6px; border: 2px solid var(--border); flex-shrink: 0; }
+        .legend-item input { flex: 1; margin-bottom: 0; }
+        .legend-item button { width: 32px; height: 32px; padding: 0; background: var(--danger); border-radius: 6px; flex-shrink: 0; }
+        .legend-item button i { color: white; }
+        #layers-panel { position: absolute; bottom: 16px; right: 16px; width: 280px; max-height: 400px; background: var(--bg-white);
+            border-radius: 12px; box-shadow: var(--shadow); z-index: 998; display: flex; flex-direction: column; }
+        .layers-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .layers-header h3 { font-size: 14px; font-weight: 600; }
+        .layers-content { padding: 12px; overflow-y: auto; max-height: 300px; }
+        .layer-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg-light); border-radius: 8px;
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+        .layer-item:hover { background: #e2e8f0; transform: translateX(2px); }
+        .layer-item.selected { background: rgba(37,99,235,0.1); border: 2px solid var(--primary); }
+        .layer-color { width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border); }
+        .layer-info { flex: 1; min-width: 0; }
+        .layer-type { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .layer-actions { display: flex; gap: 4px; }
+        .layer-action-btn { width: 28px; height: 28px; padding: 0; background: transparent; border: none; border-radius: 6px;
+            cursor: pointer; color: var(--text-light); transition: all 0.2s; }
+        .layer-action-btn:hover { background: var(--bg-light); }
+        .layer-action-btn.delete:hover { background: var(--danger); color: white; }
+        .layer-action-btn.edit:hover { background: var(--primary); color: white; }
+        .layer-action-btn.hide:hover { background: var(--warning); color: white; }
+        .layer-action-btn.hidden { opacity: 0.4; }
+        .layer-name-input { flex: 1; padding: 4px 8px; font-size: 13px; border: 1px solid var(--primary); border-radius: 4px;
+            background: white; margin-bottom: 0; }
+        .color-picker-popup { position: absolute; background: white; border-radius: 8px; box-shadow: var(--shadow);
+            padding: 12px; z-index: 9999; display: none; }
+        .color-picker-popup.active { display: block; }
+        .color-option { width: 32px; height: 32px; border-radius: 6px; border: 2px solid var(--border); cursor: pointer;
+            transition: all 0.2s; display: inline-block; margin: 4px; }
+        .color-option:hover { transform: scale(1.15); border-color: var(--primary); }
+        .color-option.selected { border-color: var(--primary); border-width: 3px; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+        .recent-colors { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--bg-light); border-radius: 6px; margin-bottom: 12px; }
+        .recent-color { width: 28px; height: 28px; border-radius: 4px; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; }
+        .recent-color:hover { transform: scale(1.15); border-color: var(--primary); }
+        .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 8px; max-height: 400px; overflow-y: auto; padding: 12px; }
+        .icon-option { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 24px; }
+        .icon-option:hover { background: var(--bg-light); border-color: var(--primary); transform: scale(1.05); }
+        .icon-option.selected { background: var(--primary); color: white; border-color: var(--primary); }
+        .icon-search { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-size: 14px; }
+        .notification { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: white; padding: 16px 24px; 
+            border-radius: 8px; box-shadow: var(--shadow); z-index: 10000; display: none; max-width: 400px; animation: slideIn 0.3s; }
+        .notification.show { display: block; }
+        .notification.success { background: var(--success); }
+        .notification.info { background: var(--primary); }
+        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .logo-preview { width: 100%; height: 120px; border: 2px dashed var(--border); border-radius: 8px; display: flex;
+            align-items: center; justify-content: center; margin-bottom: 12px; background-size: contain; background-repeat: no-repeat;
+            background-position: center; background-color: var(--bg-light); color: var(--text-light); font-size: 14px; }
+        .logo-preview.has-image { border-style: solid; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            z-index: 2000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--bg-white); padding: 24px; border-radius: 12px; width: 90%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .modal-header h2 { font-size: 20px; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 0; width: 32px; height: 32px; }
+        .empty-state { text-align: center; padding: 24px; color: var(--text-light); }
+        .empty-state i { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+        .flex-row { display: flex; gap: 12px; align-items: center; }
+        input[type="file"] { font-size: 13px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; }
+    </style>
+</head><body>
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h1>Permit Map Editor</h1>
+            <p>Professional Map Creation Tool</p>
+        </div>
+        <div class="sidebar-section">
+            <div class="section-title"><i class="fas fa-project-diagram"></i> Project Information</div>
+            <label for="project-name">Project Name</label>
+            <input type="text" id="project-name" placeholder="Enter project name">
+            <label for="project-description">Description</label>
+            <textarea id="project-description" placeholder="Enter project description"></textarea>
+            <div class="flex-row">
+                <div style="flex: 1;"><label for="page-number">Page</label><input type="number" id="page-number" min="1" value="1"></div>
+                <div style="flex: 1;"><label for="total-pages">of</label><input type="number" id="total-pages" min="1" value="1"></div>
+            </div>
+        </div>
+        <div class="sidebar-section">
+            <div class="section-title"><i class="fas fa-building"></i> Company Information</div>
+            <label for="company-name">Company Name</label>
+            <input type="text" id="company-name" placeholder="Enter company name">
+            <label for="company-address">Company Address</label>
+            <input type="text" id="company-address" placeholder="Enter company address">
+            <label for="drawn-by">Drawn By</label>
+            <input type="text" id="drawn-by" placeholder="Enter your name">
+            <label for="date-drawn">Date</label>
+            <input type="text" id="date-drawn" placeholder="MM/DD/YY">
+            <label for="logo-upload">Company Logo</label>
+            <div class="logo-preview" id="logo-preview"><span id="logo-placeholder">Click to upload logo</span></div>
+            <input type="file" id="logo-upload" accept="image/*">
+            <label for="logo-select">Saved Logos</label>
+            <select id="logo-select"><option value="">Select a saved logo</option></select>
+        </div>
+        <div class="sidebar-section">
+            <div class="section-title"><i class="fas fa-list"></i> Legend</div>
+            <div id="legend-items"></div>
+            <button class="btn-primary btn-full" id="add-legend-item"><i class="fas fa-plus"></i> Add Legend Item</button>
+        </div>
+        <div class="sidebar-section">
+            <div class="section-title"><i class="fas fa-tools"></i> Actions</div>
+            <button class="btn-secondary btn-full" id="undo-btn"><i class="fas fa-undo"></i> Undo</button>
+            <button class="btn-secondary btn-full" id="redo-btn"><i class="fas fa-redo"></i> Redo</button>
+            <button class="btn-danger btn-full" id="clear-all"><i class="fas fa-trash-alt"></i> Clear All Drawings</button>
+        </div>
+        <div class="sidebar-section">
+            <div class="section-title"><i class="fas fa-save"></i> Project Management</div>
+            <button class="btn-secondary btn-full" id="export-project"><i class="fas fa-download"></i> Export Project (JSON)</button>
+            <button class="btn-secondary btn-full" id="import-project"><i class="fas fa-upload"></i> Import Project (JSON)</button>
+            <input type="file" id="import-project-file" accept=".json" style="display: none;">
+            <button class="btn-success btn-full" id="export-pdf"><i class="fas fa-file-pdf"></i> Export as PDF</button>
+        </div>
+    </div>
+    <div id="main-content">
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search for a location (e.g., '123 Main St, City')">
+            <button class="btn-primary" id="search-button"><i class="fas fa-search"></i> Search</button>
+        </div>
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="drawing-tools">
+                <div class="tool-section">
+                    <div class="tool-section-label">Tools</div>
+                    <div class="tool-row">
+                        <button class="tool-btn active" id="pan-tool" title="Pan (P)"><i class="fas fa-hand-paper"></i></button>
+                        <button class="tool-btn" id="line-tool" title="Straight Line (L)"><i class="fas fa-minus"></i></button>
+                        <button class="tool-btn" id="polyline-tool" title="Multi-Point Line (M) - Click points, double-click to finish"><i class="fas fa-project-diagram"></i></button>
+                    </div>
+                    <div class="tool-row">
+                        <button class="tool-btn" id="rectangle-tool" title="Rectangle (R)"><i class="far fa-square"></i></button>
+                        <button class="tool-btn" id="circle-tool" title="Circle (C)"><i class="far fa-circle"></i></button>
+                        <button class="tool-btn" id="polygon-tool" title="Polygon (G)"><i class="fas fa-draw-polygon"></i></button>
+                    </div>
+                    <div class="tool-row">
+                        <button class="tool-btn" id="text-tool" title="Text (T)"><i class="fas fa-font"></i></button>
+                        <button class="tool-btn" id="icon-tool" title="Add Icon (I)"><i class="mdi mdi-shape"></i></button>
+                    </div>
+                </div>
+                <div class="tool-section">
+                    <div class="tool-section-label">Color</div>
+                    <div class="color-picker-container"><input type="color" id="color-picker" value="#ef4444"></div>
+                    <div id="recent-colors-container" style="margin-top: 8px; display: none;">
+                        <div style="font-size: 11px; color: var(--text-light); margin-bottom: 4px;">Recent Colors</div>
+                        <div class="recent-colors" id="recent-colors"></div>
+                    </div>
+                </div>
+                <div class="tool-section">
+                    <div class="tool-section-label">Actions</div>
+                    <div class="tool-row">
+                        <button class="tool-btn" id="delete-selected" title="Delete Selected (Del)"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div id="layers-panel">
+                <div class="layers-header"><h3>Layers (<span id="layer-count">0</span>)</h3></div>
+                <div class="layers-content" id="layers-content">
+                    <div class="empty-state"><i class="fas fa-layer-group"></i><p>No layers yet. Start drawing!</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="text-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Text</h2>
+                <button class="modal-close" id="close-text-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <label for="text-input">Enter your text:</label>
+            <textarea id="text-input" placeholder="Enter text to add to the map" rows="4"></textarea>
+            <label for="text-size">Font Size:</label>
+            <div class="flex-row" style="margin-bottom: 12px;">
+                <input type="range" id="text-size" min="10" max="36" value="14" style="flex: 1;">
+                <span id="text-size-display" style="min-width: 50px; text-align: right; font-weight: 600;">14px</span>
+            </div>
+            <button class="btn-primary btn-full" id="add-text-btn"><i class="fas fa-check"></i> Add Text</button>
+        </div>
+    </div>
+    <div id="icon-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Icon</h2>
+                <button class="modal-close" id="close-icon-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="background: var(--bg-light); padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; color: var(--text-dark);">
+                <strong>📌 Tip:</strong> Click any icon below to place it on the map. You can adjust rotation & scale after placement in the Layers panel.
+            </div>
+            <input type="text" id="icon-search" class="icon-search" placeholder="Search icons (e.g., 'phone', 'network', 'utility')...">
+            <label for="icon-size">Icon Size:</label>
+            <div class="flex-row" style="margin-bottom: 12px;">
+                <input type="range" id="icon-size" min="20" max="80" value="32" style="flex: 1;">
+                <span id="icon-size-display" style="min-width: 50px; text-align: right; font-weight: 600;">32px</span>
+            </div>
+            <div id="icon-grid" class="icon-grid"></div>
+        </div>
+    </div>
+    <div id="notification" class="notification"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>let map, drawnItems, currentTool = 'pan', currentColor = '#ef4444', selectedLayer = null;
+let layers = [], undoStack = [], redoStack = [];
+let state = { projectName: '', description: '', pageNumber: 1, totalPages: 1, companyName: '',
+    companyAddress: '', drawnBy: '', dateDrawn: '', companyLogo: null, legendItems: [], savedLogos: [] };
+let editingLayerId = null;
+let activeDrawHandler = null; // Track the currently active draw handler
+let recentColors = []; // Track recently used colors
+let selectedIconClass = ''; // Track selected icon for placement
+
+// Initialize map
+document.addEventListener('DOMContentLoaded', () => {
+    map = L.map('map').setView([40.505, -99.09], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    drawnItems = new L.FeatureGroup().addTo(map);
+    const drawControl = new L.Control.Draw({
+        position: 'topright',
+        draw: { polyline: { shapeOptions: { color: currentColor, weight: 3 }},
+            polygon: { shapeOptions: { color: currentColor }},
+            circle: { shapeOptions: { color: currentColor }},
+            rectangle: { shapeOptions: { color: currentColor }}, marker: true },
+        edit: { featureGroup: drawnItems, remove: false }
+    });
+    map.addControl(drawControl);
+    setTimeout(() => {
+        const ctrl = document.querySelector('.leaflet-draw.leaflet-control');
+        if (ctrl) ctrl.style.display = 'none';
+    }, 100);
+    
+    map.on(L.Draw.Event.CREATED, e => {
+        const layer = e.layer;
+        if (layer.setStyle) layer.setStyle({ color: currentColor, fillColor: currentColor, fillOpacity: 0.2 });
+        const layerId = Date.now() + '_' + Math.random();
+        layer._customId = layerId;
+        
+        // Make all layers editable/movable
+        if (layer.editing && layer.editing.enable) {
+            layer.on('click', function() {
+                if (currentTool === 'pan') {
+                    this.editing.enable();
+                    selectedLayer = this;
+                    updateLayersPanel();
+                }
+            });
+        }
+        
+        drawnItems.addLayer(layer);
+        const typeName = e.layerType.charAt(0).toUpperCase() + e.layerType.slice(1);
+        layers.push({ id: layerId, layer, type: e.layerType, color: currentColor, name: typeName + ' ' + (layers.length + 1), visible: true });
+        addRecentColor(currentColor);
+        saveToUndoStack();
+        updateLayersPanel();
+        saveState();
+        
+        // Keep the same tool active after drawing (so you can draw multiple shapes in a row)
+        // This allows drawing multiple rectangles, circles, etc. without re-selecting the tool
+        const toolToReactivate = currentTool;
+        setTimeout(() => {
+            if (toolToReactivate !== 'pan' && toolToReactivate !== 'text') {
+                setActiveTool(toolToReactivate);
+            }
+        }, 10);
+    });
+    
+    initEventHandlers();
+    loadState();
+    updateLayersPanel();
+    
+    const today = new Date();
+    const formatted = `${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}/${today.getFullYear().toString().slice(2)}`;
+    document.getElementById('date-drawn').value = formatted;
+    state.dateDrawn = formatted;
+    if (state.legendItems.length === 0) addLegendItem('#ef4444', 'Fiber Optic');
+});
+
+function initEventHandlers() {
+    document.getElementById('pan-tool').onclick = () => setActiveTool('pan');
+    document.getElementById('line-tool').onclick = () => setActiveTool('line');
+    document.getElementById('polyline-tool').onclick = () => setActiveTool('polyline');
+    document.getElementById('rectangle-tool').onclick = () => setActiveTool('rectangle');
+    document.getElementById('circle-tool').onclick = () => setActiveTool('circle');
+    document.getElementById('polygon-tool').onclick = () => setActiveTool('polygon');
+    document.getElementById('text-tool').onclick = () => setActiveTool('text');
+    document.getElementById('icon-tool').onclick = () => setActiveTool('icon');
+    document.getElementById('delete-selected').onclick = deleteSelected;
+    document.getElementById('clear-all').onclick = clearAll;
+    document.getElementById('color-picker').onchange = e => {
+        currentColor = e.target.value;
+        if (selectedLayer && selectedLayer.setStyle) {
+            selectedLayer.setStyle({ color: currentColor, fillColor: currentColor });
+            updateLayerColor(selectedLayer._customId, currentColor);
+        }
+    };
+    document.getElementById('search-button').onclick = searchLocation;
+    document.getElementById('search-input').onkeypress = e => { if (e.key === 'Enter') searchLocation(); };
+    document.getElementById('add-legend-item').onclick = () => addLegendItem(currentColor, '');
+    document.getElementById('logo-upload').onchange = handleLogoUpload;
+    document.getElementById('logo-select').onchange = handleLogoSelect;
+    document.getElementById('export-project').onclick = exportProject;
+    document.getElementById('import-project').onclick = () => document.getElementById('import-project-file').click();
+    document.getElementById('import-project-file').onchange = importProject;
+    document.getElementById('export-pdf').onclick = generatePdf;
+    document.getElementById('close-text-modal').onclick = () => document.getElementById('text-modal').classList.remove('active');
+    document.getElementById('add-text-btn').onclick = addTextToMap;
+    document.getElementById('close-icon-modal').onclick = () => document.getElementById('icon-modal').classList.remove('active');
+    document.getElementById('undo-btn').onclick = undo;
+    document.getElementById('redo-btn').onclick = redo;
+    
+    // Text size slider
+    document.getElementById('text-size').oninput = e => {
+        document.getElementById('text-size-display').textContent = e.target.value + 'px';
+    };
+    
+    // Icon size slider
+    document.getElementById('icon-size').oninput = e => {
+        document.getElementById('icon-size-display').textContent = e.target.value + 'px';
+    };
+    
+    // Icon search
+    document.getElementById('icon-search').oninput = e => {
+        filterIcons(e.target.value);
+    };
+    
+    ['project-name','project-description','page-number','total-pages','company-name',
+     'company-address','drawn-by','date-drawn'].forEach(id => {
+        document.getElementById(id).oninput = e => {
+            const key = id.replace(/-([a-z])/g, (_, l) => l.toUpperCase());
+            state[key] = e.target.value;
+            saveState();
+        };
+    });
+    
+    document.addEventListener('keydown', e => {
+        // Don't trigger shortcuts when typing in inputs
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        if (e.key === 'Delete' && selectedLayer) deleteSelected();
+        if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+        
+        // Tool shortcuts
+        if (e.key.toLowerCase() === 'p') setActiveTool('pan');
+        if (e.key.toLowerCase() === 'l') setActiveTool('line');
+        if (e.key.toLowerCase() === 'm') setActiveTool('polyline');
+        if (e.key.toLowerCase() === 'r') setActiveTool('rectangle');
+        if (e.key.toLowerCase() === 'c') setActiveTool('circle');
+        if (e.key.toLowerCase() === 'g') setActiveTool('polygon');
+        if (e.key.toLowerCase() === 't') setActiveTool('text');
+        if (e.key.toLowerCase() === 'i') setActiveTool('icon');
+    });
+}
+
+function setActiveTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`${tool}-tool`).classList.add('active');
+    
+    // Disable any active draw handler before enabling a new one
+    if (activeDrawHandler) {
+        try {
+            activeDrawHandler.disable();
+        } catch (e) {
+            // Handler might already be disabled
+        }
+        activeDrawHandler = null;
+    }
+    
+    if (tool === 'pan') {
+        map.dragging.enable();
+    } else {
+        map.dragging.disable();
+        if (tool === 'text') {
+            document.getElementById('text-modal').classList.add('active');
+            document.getElementById('text-input').value = '';
+            document.getElementById('text-input').focus();
+        } else if (tool === 'icon') {
+            document.getElementById('icon-modal').classList.add('active');
+            populateIcons();
+        } else if (tool === 'line') {
+            // Straight line tool (2 points only) - perfect for vault-to-vault runs
+            activeDrawHandler = new L.Draw.Polyline(map, { 
+                shapeOptions: { color: currentColor, weight: 3 },
+                maxPoints: 2,
+                showLength: false
+            });
+            activeDrawHandler.enable();
+        } else if (tool === 'polyline') {
+            // Multi-point polyline - single click to add points, double-click to finish
+            activeDrawHandler = new L.Draw.Polyline(map, { 
+                shapeOptions: { color: currentColor, weight: 3 },
+                repeatMode: false,
+                showLength: false,
+                metric: true,
+                feet: false
+            });
+            activeDrawHandler.enable();
+        } else {
+            const tools = { rectangle: L.Draw.Rectangle, 
+                circle: L.Draw.Circle, polygon: L.Draw.Polygon };
+            if (tools[tool]) {
+                activeDrawHandler = new tools[tool](map, { shapeOptions: { color: currentColor, weight: 3 }});
+                activeDrawHandler.enable();
+            }
+        }
+    }
+}
+
+function addTextToMap() {
+    const text = document.getElementById('text-input').value.trim();
+    if (!text) return;
+    const fontSize = document.getElementById('text-size').value;
+    const center = map.getCenter();
+    
+    // Create draggable text marker with proper styling to prevent vertical display
+    const marker = L.marker(center, {
+        icon: L.divIcon({
+            html: `<div class="custom-text-marker" style="color:${currentColor}; font-weight:600; background:white; padding:6px 10px; border-radius:4px; font-size:${fontSize}px; white-space: nowrap; border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: move;">${escapeHtml(text)}</div>`,
+            className: 'text-marker-wrapper',
+            iconSize: null,
+            iconAnchor: [0, 0]
+        }),
+        draggable: true
+    });
+    
+    const layerId = Date.now() + '_' + Math.random();
+    marker._customId = layerId;
+    marker.addTo(drawnItems);
+    
+    // Store font size in layer data
+    const layerData = { 
+        id: layerId, 
+        layer: marker, 
+        type: 'text', 
+        color: currentColor, 
+        text, 
+        fontSize: parseInt(fontSize),
+        name: text.substring(0, 20), 
+        visible: true 
+    };
+    layers.push(layerData);
+    
+    // Add drag event listeners
+    marker.on('dragend', () => {
+        saveToUndoStack();
+        saveState();
+    });
+    
+    document.getElementById('text-modal').classList.remove('active');
+    setActiveTool('pan');
+    saveToUndoStack();
+    updateLayersPanel();
+    saveState();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Recent colors tracking
+function addRecentColor(color) {
+    if (!color) return;
+    // Remove if already exists
+    recentColors = recentColors.filter(c => c !== color);
+    // Add to front
+    recentColors.unshift(color);
+    // Keep only last 10
+    if (recentColors.length > 10) recentColors.pop();
+    updateRecentColorsDisplay();
+}
+
+function updateRecentColorsDisplay() {
+    const container = document.getElementById('recent-colors');
+    const containerWrap = document.getElementById('recent-colors-container');
+    
+    if (recentColors.length === 0) {
+        containerWrap.style.display = 'none';
+        return;
+    }
+    
+    containerWrap.style.display = 'block';
+    container.innerHTML = recentColors.map(color => 
+        `<div class="recent-color" style="background: ${color};" onclick="selectRecentColor('${color}')" title="${color}"></div>`
+    ).join('');
+}
+
+function selectRecentColor(color) {
+    currentColor = color;
+    document.getElementById('color-picker').value = color;
+    addRecentColor(color);
+}
+
+// Icon functionality - Comprehensive utility/construction/network/tech icon library
+const utilityIcons = [
+    // Shapes & Basic
+    { class: 'mdi-circle', keywords: 'circle shape round' },
+    { class: 'mdi-circle-outline', keywords: 'circle outline shape round' },
+    { class: 'mdi-square', keywords: 'square shape box' },
+    { class: 'mdi-square-outline', keywords: 'square outline shape box' },
+    { class: 'mdi-triangle', keywords: 'triangle shape' },
+    { class: 'mdi-triangle-outline', keywords: 'triangle outline shape' },
+    { class: 'mdi-hexagon', keywords: 'hexagon shape six sided' },
+    { class: 'mdi-hexagon-outline', keywords: 'hexagon outline shape' },
+    { class: 'mdi-octagon', keywords: 'octagon shape eight sided' },
+    { class: 'mdi-octagon-outline', keywords: 'octagon outline shape' },
+    { class: 'mdi-rhombus', keywords: 'rhombus diamond shape' },
+    { class: 'mdi-rhombus-outline', keywords: 'rhombus diamond outline' },
+    { class: 'mdi-star', keywords: 'star shape point' },
+    { class: 'mdi-star-outline', keywords: 'star outline shape' },
+    
+    // Telecom/Network
+    { class: 'mdi-phone', keywords: 'phone telephone call telecom' },
+    { class: 'mdi-network', keywords: 'network fiber cable connection' },
+    { class: 'mdi-router-wireless', keywords: 'router wifi wireless network access' },
+    { class: 'mdi-access-point', keywords: 'access point wifi wireless' },
+    { class: 'mdi-access-point-network', keywords: 'access point network mesh' },
+    { class: 'mdi-server', keywords: 'server equipment data rack' },
+    { class: 'mdi-server-network', keywords: 'server network data center' },
+    { class: 'mdi-cellphone-marker', keywords: 'cell tower antenna signal mobile' },
+    { class: 'mdi-antenna', keywords: 'antenna signal radio broadcast' },
+    { class: 'mdi-tower-fire', keywords: 'tower pole structure telecom' },
+    { class: 'mdi-satellite-variant', keywords: 'satellite dish antenna signal' },
+    { class: 'mdi-wifi', keywords: 'wifi wireless network signal' },
+    { class: 'mdi-lan', keywords: 'lan network ethernet cable wired' },
+    { class: 'mdi-lan-connect', keywords: 'lan connect network link' },
+    { class: 'mdi-lan-disconnect', keywords: 'lan disconnect network broken' },
+    { class: 'mdi-cable-data', keywords: 'cable data fiber network' },
+    { class: 'mdi-ethernet', keywords: 'ethernet cable network wired' },
+    { class: 'mdi-ethernet-cable', keywords: 'ethernet cable network connection' },
+    { class: 'mdi-radio-tower', keywords: 'radio tower antenna broadcast' },
+    { class: 'mdi-radar', keywords: 'radar signal detection' },
+    { class: 'mdi-broadcast', keywords: 'broadcast signal antenna' },
+    
+    // Markers & Locations
+    { class: 'mdi-map-marker', keywords: 'marker pin location vault manhole point' },
+    { class: 'mdi-map-marker-circle', keywords: 'marker location point circle' },
+    { class: 'mdi-map-marker-radius', keywords: 'marker radius coverage area' },
+    { class: 'mdi-map-marker-outline', keywords: 'marker outline pin location' },
+    { class: 'mdi-map-marker-star', keywords: 'marker star important location' },
+    { class: 'mdi-crosshairs-gps', keywords: 'gps location crosshair target position' },
+    { class: 'mdi-target', keywords: 'target crosshair aim point' },
+    { class: 'mdi-crosshairs', keywords: 'crosshairs target center' },
+    
+    // Electric/Power
+    { class: 'mdi-flash', keywords: 'electric power lightning bolt energy' },
+    { class: 'mdi-flash-circle', keywords: 'electric power circle energy' },
+    { class: 'mdi-flash-outline', keywords: 'electric power outline lightning' },
+    { class: 'mdi-transmission-tower', keywords: 'transmission tower power electric utility' },
+    { class: 'mdi-power-plug', keywords: 'power plug electric outlet' },
+    { class: 'mdi-power-socket', keywords: 'power socket electric outlet' },
+    { class: 'mdi-electric-switch', keywords: 'switch electric power control' },
+    { class: 'mdi-lightning-bolt', keywords: 'lightning bolt electric power' },
+    { class: 'mdi-lightning-bolt-circle', keywords: 'lightning bolt circle power' },
+    { class: 'mdi-battery', keywords: 'battery power energy storage' },
+    { class: 'mdi-battery-charging', keywords: 'battery charging power' },
+    { class: 'mdi-current-ac', keywords: 'current ac power electric' },
+    { class: 'mdi-current-dc', keywords: 'current dc power electric' },
+    { class: 'mdi-car-electric', keywords: 'electric vehicle ev charging' },
+    { class: 'mdi-ev-station', keywords: 'ev charging station electric vehicle' },
+    
+    // Water/Gas/Utility
+    { class: 'mdi-water', keywords: 'water utility liquid droplet' },
+    { class: 'mdi-water-pump', keywords: 'water pump utility equipment' },
+    { class: 'mdi-fire-hydrant', keywords: 'hydrant water fire emergency' },
+    { class: 'mdi-gas-station', keywords: 'gas fuel utility station' },
+    { class: 'mdi-gauge', keywords: 'meter gauge utility measure monitor' },
+    { class: 'mdi-valve', keywords: 'valve pipe utility control shutoff' },
+    { class: 'mdi-pipe', keywords: 'pipe duct conduit utility' },
+    { class: 'mdi-pipe-leak', keywords: 'pipe leak damage broken' },
+    { class: 'mdi-pipe-wrench', keywords: 'pipe wrench tool plumbing' },
+    { class: 'mdi-water-well', keywords: 'water well utility source' },
+    { class: 'mdi-water-outline', keywords: 'water outline utility' },
+    { class: 'mdi-hydrant', keywords: 'hydrant fire water emergency' },
+    
+    // Buildings & Structures
+    { class: 'mdi-city', keywords: 'city building structure urban' },
+    { class: 'mdi-office-building', keywords: 'office building structure commercial' },
+    { class: 'mdi-office-building-outline', keywords: 'office building outline' },
+    { class: 'mdi-home', keywords: 'home house building residential' },
+    { class: 'mdi-home-outline', keywords: 'home outline house' },
+    { class: 'mdi-warehouse', keywords: 'warehouse building facility storage' },
+    { class: 'mdi-factory', keywords: 'factory industrial building manufacturing' },
+    { class: 'mdi-home-lightning-bolt', keywords: 'home electric power service residential' },
+    { class: 'mdi-store', keywords: 'store shop building commercial' },
+    { class: 'mdi-hospital-building', keywords: 'hospital building medical facility' },
+    { class: 'mdi-school', keywords: 'school building education facility' },
+    { class: 'mdi-tunnel', keywords: 'tunnel underground conduit passage' },
+    { class: 'mdi-bridge', keywords: 'bridge crossing overpass structure' },
+    { class: 'mdi-silo', keywords: 'silo storage tower structure' },
+    
+    // Construction & Equipment
+    { class: 'mdi-excavator', keywords: 'excavator construction equipment dig machinery' },
+    { class: 'mdi-hard-hat', keywords: 'hard hat safety construction work ppe' },
+    { class: 'mdi-bulldozer', keywords: 'bulldozer construction equipment machinery' },
+    { class: 'mdi-dump-truck', keywords: 'dump truck construction vehicle equipment' },
+    { class: 'mdi-crane', keywords: 'crane construction equipment lifting' },
+    { class: 'mdi-hammer', keywords: 'hammer tool construction' },
+    { class: 'mdi-shovel', keywords: 'shovel dig tool construction' },
+    { class: 'mdi-tools', keywords: 'tools construction equipment work' },
+    { class: 'mdi-screwdriver', keywords: 'screwdriver tool construction' },
+    { class: 'mdi-wrench', keywords: 'wrench tool construction mechanic' },
+    { class: 'mdi-toolbox', keywords: 'toolbox tools construction storage' },
+    { class: 'mdi-saw-blade', keywords: 'saw blade tool construction cutting' },
+    { class: 'mdi-nail', keywords: 'nail construction fastener' },
+    { class: 'mdi-screw', keywords: 'screw construction fastener' },
+    
+    // Roads & Transportation
+    { class: 'mdi-road', keywords: 'road street path highway' },
+    { class: 'mdi-road-variant', keywords: 'road variant street path' },
+    { class: 'mdi-highway', keywords: 'highway road freeway interstate' },
+    { class: 'mdi-traffic-light', keywords: 'traffic light signal intersection' },
+    { class: 'mdi-traffic-cone', keywords: 'traffic cone construction safety' },
+    { class: 'mdi-sign-pole', keywords: 'sign pole street marker' },
+    { class: 'mdi-signpost', keywords: 'signpost direction marker' },
+    { class: 'mdi-parking', keywords: 'parking lot area vehicle' },
+    
+    // Connection & Junction
+    { class: 'mdi-connection', keywords: 'connection link splice junction node' },
+    { class: 'mdi-source-branch', keywords: 'branch split junction fork tree' },
+    { class: 'mdi-source-merge', keywords: 'merge junction combine join' },
+    { class: 'mdi-swap-horizontal', keywords: 'swap horizontal exchange connection' },
+    { class: 'mdi-swap-vertical', keywords: 'swap vertical exchange connection' },
+    { class: 'mdi-transit-connection-variant', keywords: 'transit connection junction transfer' },
+    
+    // Alerts & Symbols
+    { class: 'mdi-alert', keywords: 'alert warning attention caution' },
+    { class: 'mdi-alert-outline', keywords: 'alert outline warning' },
+    { class: 'mdi-alert-octagon', keywords: 'alert warning danger stop octagon' },
+    { class: 'mdi-alert-octagon-outline', keywords: 'alert octagon outline warning' },
+    { class: 'mdi-alert-circle', keywords: 'alert circle warning attention' },
+    { class: 'mdi-alert-circle-outline', keywords: 'alert circle outline warning' },
+    { class: 'mdi-alert-box', keywords: 'alert box warning notice' },
+    { class: 'mdi-information', keywords: 'info information note help' },
+    { class: 'mdi-information-outline', keywords: 'info outline information' },
+    { class: 'mdi-help', keywords: 'help question support' },
+    { class: 'mdi-help-circle', keywords: 'help circle question support' },
+    { class: 'mdi-help-circle-outline', keywords: 'help circle outline question' },
+    { class: 'mdi-check', keywords: 'check complete done ok yes' },
+    { class: 'mdi-check-circle', keywords: 'check circle complete ok' },
+    { class: 'mdi-check-circle-outline', keywords: 'check circle outline complete' },
+    { class: 'mdi-checkbox-marked-circle', keywords: 'checkbox checked complete ok verified' },
+    { class: 'mdi-close', keywords: 'close cancel no reject x' },
+    { class: 'mdi-close-circle', keywords: 'close circle cancel reject' },
+    { class: 'mdi-close-circle-outline', keywords: 'close circle outline cancel' },
+    { class: 'mdi-cancel', keywords: 'cancel stop reject abort' },
+    { class: 'mdi-stop', keywords: 'stop halt end cancel' },
+    { class: 'mdi-block-helper', keywords: 'block stop prohibited forbidden' },
+    { class: 'mdi-do-not-disturb', keywords: 'do not disturb prohibited restricted' },
+    
+    // Arrows & Directions
+    { class: 'mdi-arrow-right', keywords: 'arrow right direction flow east' },
+    { class: 'mdi-arrow-left', keywords: 'arrow left direction flow west' },
+    { class: 'mdi-arrow-up', keywords: 'arrow up direction flow north' },
+    { class: 'mdi-arrow-down', keywords: 'arrow down direction flow south' },
+    { class: 'mdi-arrow-top-right', keywords: 'arrow top right diagonal northeast' },
+    { class: 'mdi-arrow-top-left', keywords: 'arrow top left diagonal northwest' },
+    { class: 'mdi-arrow-bottom-right', keywords: 'arrow bottom right diagonal southeast' },
+    { class: 'mdi-arrow-bottom-left', keywords: 'arrow bottom left diagonal southwest' },
+    { class: 'mdi-arrow-right-bold', keywords: 'arrow right bold thick direction' },
+    { class: 'mdi-arrow-left-bold', keywords: 'arrow left bold thick direction' },
+    { class: 'mdi-arrow-up-bold', keywords: 'arrow up bold thick direction' },
+    { class: 'mdi-arrow-down-bold', keywords: 'arrow down bold thick direction' },
+    { class: 'mdi-chevron-right', keywords: 'chevron right arrow direction' },
+    { class: 'mdi-chevron-left', keywords: 'chevron left arrow direction' },
+    { class: 'mdi-chevron-up', keywords: 'chevron up arrow direction' },
+    { class: 'mdi-chevron-down', keywords: 'chevron down arrow direction' },
+    { class: 'mdi-menu-right', keywords: 'menu right arrow next' },
+    { class: 'mdi-menu-left', keywords: 'menu left arrow back' },
+    { class: 'mdi-menu-up', keywords: 'menu up arrow direction' },
+    { class: 'mdi-menu-down', keywords: 'menu down arrow direction' },
+    
+    // Plus/Minus/Math
+    { class: 'mdi-plus', keywords: 'plus add new create' },
+    { class: 'mdi-plus-circle', keywords: 'plus circle add new' },
+    { class: 'mdi-plus-circle-outline', keywords: 'plus circle outline add' },
+    { class: 'mdi-plus-box', keywords: 'plus box add new' },
+    { class: 'mdi-minus', keywords: 'minus subtract remove' },
+    { class: 'mdi-minus-circle', keywords: 'minus circle subtract remove' },
+    { class: 'mdi-minus-circle-outline', keywords: 'minus circle outline subtract' },
+    { class: 'mdi-minus-box', keywords: 'minus box subtract remove' },
+    { class: 'mdi-equal', keywords: 'equal equals math symbol' },
+    { class: 'mdi-approximately-equal', keywords: 'approximately equal roughly about' }
+];
+
+function populateIcons() {
+    const grid = document.getElementById('icon-grid');
+    if (grid.children.length > 0) return; // Already populated
+    
+    grid.innerHTML = utilityIcons.map(icon => 
+        `<div class="icon-option" data-icon="${icon.class}" data-keywords="${icon.keywords}" onclick="selectIcon('${icon.class}')">
+            <i class="mdi ${icon.class}"></i>
+        </div>`
+    ).join('');
+}
+
+function filterIcons(search) {
+    const term = search.toLowerCase();
+    const options = document.querySelectorAll('.icon-option');
+    
+    options.forEach(opt => {
+        const keywords = opt.dataset.keywords || '';
+        const iconClass = opt.dataset.icon || '';
+        const matches = keywords.includes(term) || iconClass.includes(term);
+        opt.style.display = matches ? 'flex' : 'none';
+    });
+}
+
+function selectIcon(iconClass) {
+    selectedIconClass = iconClass;
+    document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+    document.querySelector(`[data-icon="${iconClass}"]`)?.classList.add('selected');
+    
+    // Place icon on map and close modal
+    addIconToMap(iconClass);
+    
+    // Close the modal so user can see the icon
+    document.getElementById('icon-modal').classList.remove('active');
+    
+    // Show helpful notification
+    showNotification('Icon added! Click the icon layer in the Layers panel to adjust rotation & scale.', 'success', 5000);
+}
+
+function addIconToMap(iconClass) {
+    const iconSize = parseInt(document.getElementById('icon-size').value);
+    const center = map.getCenter();
+    
+    const marker = L.marker(center, {
+        icon: L.divIcon({
+            html: `<i class="mdi ${iconClass}" style="font-size: ${iconSize}px; color: ${currentColor}; transform-origin: center; display: inline-block;"></i>`,
+            className: 'icon-marker',
+            iconSize: [iconSize, iconSize],
+            iconAnchor: [iconSize/2, iconSize/2]
+        }),
+        draggable: true
+    });
+    
+    const layerId = Date.now() + '_' + Math.random();
+    marker._customId = layerId;
+    marker.addTo(drawnItems);
+    
+    layers.push({ 
+        id: layerId, 
+        layer: marker, 
+        type: 'icon', 
+        color: currentColor, 
+        iconClass: iconClass,
+        iconSize: iconSize,
+        rotation: 0,
+        scale: 1,
+        name: 'Icon ' + (layers.length + 1), 
+        visible: true 
+    });
+    
+    marker.on('dragend', () => {
+        saveToUndoStack();
+        saveState();
+    });
+    
+    addRecentColor(currentColor);
+    saveToUndoStack();
+    updateLayersPanel();
+    saveState();
+    
+    // Switch to pan mode so user can interact with the icon
+    setTimeout(() => {
+        setActiveTool('pan');
+        // Auto-select the icon that was just added
+        selectLayerById(layerId);
+    }, 50);
+}
+
+function showNotification(message, type = 'info', duration = 3000) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `notification ${type} show`;
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, duration);
+}
+
+function updateIconRotation(id, rotation) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj && layerObj.type === 'icon') {
+        layerObj.rotation = parseInt(rotation);
+        document.getElementById(`rot-${id}`).textContent = rotation + '°';
+        applyIconTransform(layerObj);
+        saveToUndoStack();
+        saveState();
+    }
+}
+
+function updateIconScale(id, scale) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj && layerObj.type === 'icon') {
+        layerObj.scale = parseFloat(scale);
+        document.getElementById(`scale-${id}`).textContent = Math.round(scale * 100) + '%';
+        applyIconTransform(layerObj);
+        saveToUndoStack();
+        saveState();
+    }
+}
+
+function applyIconTransform(layerObj) {
+    if (layerObj.type !== 'icon') return;
+    
+    // Function to apply the transform
+    const applyTransform = () => {
+        if (!layerObj.layer._icon) {
+            return false;
+        }
+        
+        const iconEl = layerObj.layer._icon.querySelector('.mdi');
+        if (iconEl) {
+            const rotation = layerObj.rotation || 0;
+            const scale = layerObj.scale || 1;
+            iconEl.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+            iconEl.style.transformOrigin = 'center';
+            iconEl.style.display = 'inline-block';
+            return true;
+        }
+        return false;
+    };
+    
+    // Try immediately
+    if (!applyTransform()) {
+        // If it fails, try again after delays
+        setTimeout(() => {
+            if (!applyTransform()) {
+                setTimeout(applyTransform, 100);
+            }
+        }, 50);
+    }
+}
+
+function deleteSelected() {
+    if (!selectedLayer) return;
+    const idx = layers.findIndex(l => l.id === selectedLayer._customId);
+    if (idx !== -1) {
+        drawnItems.removeLayer(selectedLayer);
+        layers.splice(idx, 1);
+        selectedLayer = null;
+        saveToUndoStack();
+        updateLayersPanel();
+        saveState();
+    }
+}
+
+function clearAll() {
+    if (!confirm('Clear all drawings?')) return;
+    drawnItems.clearLayers();
+    layers = [];
+    selectedLayer = null;
+    undoStack = [];
+    redoStack = [];
+    updateLayersPanel();
+    saveState();
+}
+
+function updateLayersPanel() {
+    const content = document.getElementById('layers-content');
+    const count = document.getElementById('layer-count');
+    count.textContent = layers.length;
+    
+    if (layers.length === 0) {
+        content.innerHTML = '<div class="empty-state"><i class="fas fa-layer-group"></i><p>No layers yet. Start drawing!</p></div>';
+        return;
+    }
+    
+    content.innerHTML = layers.map((l, i) => {
+        const selected = selectedLayer && selectedLayer._customId === l.id ? 'selected' : '';
+        const isEditing = editingLayerId === l.id;
+        const visibleClass = l.visible ? '' : 'hidden';
+        const visibleIcon = l.visible ? 'fa-eye' : 'fa-eye-slash';
+        
+        if (isEditing) {
+            return `<div class="layer-item ${selected}" data-id="${l.id}">
+                <div class="layer-color" style="background:${l.color}; cursor: pointer;" onclick="showColorPicker('${l.id}', event)"></div>
+                <div class="layer-info">
+                    <input type="text" class="layer-name-input" value="${l.name}" 
+                        onblur="saveLayerName('${l.id}', this.value)" 
+                        onkeydown="if(event.key==='Enter') this.blur()" 
+                        id="edit-${l.id}" autofocus>
+                </div>
+                <div class="layer-actions">
+                    <button class="layer-action-btn" onclick="stopEditingLayer()">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>`;
+        }
+        
+        // Icon layers get rotation and scale controls
+        const iconControls = l.type === 'icon' && selected ? `
+            <div class="icon-controls" style="padding: 8px; background: var(--bg-light); border-top: 1px solid var(--border);">
+                <div style="font-size: 11px; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-sliders-h" style="font-size: 10px;"></i>
+                    Adjust Icon:
+                </div>
+                <div style="margin-bottom: 6px;">
+                    <label style="font-size: 11px; color: var(--text-light); display: block; margin-bottom: 2px;">Rotation: <span id="rot-${l.id}">${l.rotation || 0}°</span></label>
+                    <input type="range" min="0" max="360" value="${l.rotation || 0}" 
+                        oninput="updateIconRotation('${l.id}', this.value)" 
+                        style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-light); display: block; margin-bottom: 2px;">Scale: <span id="scale-${l.id}">${((l.scale || 1) * 100).toFixed(0)}%</span></label>
+                    <input type="range" min="50" max="300" value="${(l.scale || 1) * 100}" 
+                        oninput="updateIconScale('${l.id}', this.value / 100)" 
+                        style="width: 100%;">
+                </div>
+            </div>
+        ` : '';
+        
+        return `<div class="layer-item ${selected} ${visibleClass}" data-id="${l.id}">
+            <div class="layer-color" style="background:${l.color}; cursor: pointer;" onclick="showColorPicker('${l.id}', event)" title="Click to change color"></div>
+            <div class="layer-info" ondblclick="startEditingLayer('${l.id}')">
+                <div class="layer-type" title="Double-click to rename">${l.name}</div>
+            </div>
+            <div class="layer-actions">
+                <button class="layer-action-btn" onclick="toggleLayerVisibility('${l.id}')" title="${l.visible ? 'Hide' : 'Show'} layer">
+                    <i class="fas ${visibleIcon}"></i>
+                </button>
+                <button class="layer-action-btn edit" onclick="startEditingLayer('${l.id}')" title="Rename layer">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="layer-action-btn delete" onclick="deleteLayerById('${l.id}')" title="Delete layer">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            ${iconControls}
+        </div>`;
+    }).join('');
+    
+    content.querySelectorAll('.layer-item').forEach(item => {
+        item.onclick = e => {
+            if (!e.target.closest('.layer-action-btn') && !e.target.closest('.layer-color') && !e.target.classList.contains('layer-name-input')) {
+                const id = item.dataset.id;
+                selectLayerById(id);
+            }
+        };
+    });
+}
+
+function selectLayerById(id) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj) {
+        selectedLayer = layerObj.layer;
+        updateLayersPanel();
+        
+        // Apply icon transform if this is an icon with rotation/scale
+        if (layerObj.type === 'icon' && (layerObj.rotation || layerObj.scale !== 1)) {
+            setTimeout(() => applyIconTransform(layerObj), 50);
+        }
+        
+        if (layerObj.layer.getLatLng) {
+            map.panTo(layerObj.layer.getLatLng());
+        } else if (layerObj.layer.getBounds) {
+            map.fitBounds(layerObj.layer.getBounds());
+        }
+    }
+}
+
+function startEditingLayer(id) {
+    editingLayerId = id;
+    updateLayersPanel();
+    setTimeout(() => {
+        const input = document.getElementById(`edit-${id}`);
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 50);
+}
+
+function stopEditingLayer() {
+    editingLayerId = null;
+    updateLayersPanel();
+}
+
+function saveLayerName(id, newName) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj && newName.trim()) {
+        layerObj.name = newName.trim();
+        saveState();
+    }
+    stopEditingLayer();
+}
+
+function toggleLayerVisibility(id) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj) {
+        layerObj.visible = !layerObj.visible;
+        if (layerObj.visible) {
+            drawnItems.addLayer(layerObj.layer);
+        } else {
+            drawnItems.removeLayer(layerObj.layer);
+        }
+        saveToUndoStack();
+        updateLayersPanel();
+        saveState();
+    }
+}
+
+function showColorPicker(id, event) {
+    event.stopPropagation();
+    
+    // Remove any existing color picker
+    const existing = document.querySelector('.color-picker-popup');
+    if (existing) existing.remove();
+    
+    // Get legend colors
+    const legendColors = state.legendItems.map(item => item.color);
+    if (legendColors.length === 0) {
+        legendColors.push('#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899');
+    }
+    
+    const layerObj = layers.find(l => l.id === id);
+    const currentColor = layerObj ? layerObj.color : '#ef4444';
+    
+    // Create color picker popup
+    const picker = document.createElement('div');
+    picker.className = 'color-picker-popup active';
+    picker.style.position = 'fixed';
+    picker.style.left = event.clientX + 'px';
+    picker.style.top = event.clientY + 'px';
+    
+    const title = document.createElement('div');
+    title.style.fontSize = '12px';
+    title.style.fontWeight = '600';
+    title.style.marginBottom = '8px';
+    title.textContent = 'Choose Color:';
+    picker.appendChild(title);
+    
+    legendColors.forEach(color => {
+        const colorDiv = document.createElement('div');
+        colorDiv.className = 'color-option' + (color === currentColor ? ' selected' : '');
+        colorDiv.style.background = color;
+        colorDiv.title = color;
+        colorDiv.onclick = () => {
+            changeLayerColor(id, color);
+            picker.remove();
+        };
+        picker.appendChild(colorDiv);
+    });
+    
+    document.body.appendChild(picker);
+    
+    // Close on click outside
+    setTimeout(() => {
+        const closeHandler = (e) => {
+            if (!picker.contains(e.target)) {
+                picker.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        document.addEventListener('click', closeHandler);
+    }, 100);
+}
+
+function changeLayerColor(id, newColor) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj) {
+        layerObj.color = newColor;
+        if (layerObj.layer.setStyle) {
+            layerObj.layer.setStyle({
+                color: newColor,
+                fillColor: newColor,
+                fillOpacity: 0.2
+            });
+        }
+        // Update text marker color
+        if (layerObj.type === 'text' && layerObj.layer._icon) {
+            const textDiv = layerObj.layer._icon.querySelector('.custom-text-marker');
+            if (textDiv) {
+                textDiv.style.color = newColor;
+            }
+        }
+        // Update icon color
+        if (layerObj.type === 'icon' && layerObj.layer._icon) {
+            const iconEl = layerObj.layer._icon.querySelector('.mdi');
+            if (iconEl) {
+                iconEl.style.color = newColor;
+            }
+        }
+        saveToUndoStack();
+        updateLayersPanel();
+        saveState();
+    }
+}
+
+function deleteLayerById(id) {
+    const idx = layers.findIndex(l => l.id === id);
+    if (idx !== -1) {
+        drawnItems.removeLayer(layers[idx].layer);
+        if (selectedLayer && selectedLayer._customId === id) selectedLayer = null;
+        layers.splice(idx, 1);
+        saveToUndoStack();
+        updateLayersPanel();
+        saveState();
+    }
+}
+
+function updateLayerColor(id, color) {
+    const layerObj = layers.find(l => l.id === id);
+    if (layerObj) {
+        layerObj.color = color;
+        saveState();
+        updateLayersPanel();
+    }
+}
+
+function saveToUndoStack() {
+    undoStack.push(JSON.stringify(layers.map(l => ({
+        id: l.id, type: l.type, color: l.color, text: l.text, name: l.name, visible: l.visible, fontSize: l.fontSize,
+        iconClass: l.iconClass, iconSize: l.iconSize, rotation: l.rotation, scale: l.scale,
+        latlng: l.layer.getLatLng ? l.layer.getLatLng() : null,
+        latlngs: l.layer.getLatLngs ? l.layer.getLatLngs() : null,
+        radius: l.layer.getRadius ? l.layer.getRadius() : null
+    }))));
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack = [];
+}
+
+function undo() {
+    if (undoStack.length < 2) return;
+    redoStack.push(undoStack.pop());
+    const prev = JSON.parse(undoStack[undoStack.length - 1]);
+    restoreLayersFromSnapshot(prev);
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    const next = JSON.parse(redoStack.pop());
+    undoStack.push(JSON.stringify(next));
+    restoreLayersFromSnapshot(next);
+}
+
+function restoreLayersFromSnapshot(snapshot) {
+    drawnItems.clearLayers();
+    layers = [];
+    selectedLayer = null;
+    snapshot.forEach(s => {
+        let layer;
+        if (s.type === 'icon') {
+            const iconSize = s.iconSize || 32;
+            layer = L.marker(s.latlng, {
+                icon: L.divIcon({
+                    html: `<i class="mdi ${s.iconClass}" style="font-size: ${iconSize}px; color: ${s.color}; transform-origin: center; display: inline-block;"></i>`,
+                    className: 'icon-marker',
+                    iconSize: [iconSize, iconSize],
+                    iconAnchor: [iconSize/2, iconSize/2]
+                }),
+                draggable: true
+            });
+            layer.on('dragend', () => {
+                saveToUndoStack();
+                saveState();
+            });
+        } else if (s.type === 'marker' || s.type === 'text') {
+            if (s.text) {
+                const fontSize = s.fontSize || 14;
+                layer = L.marker(s.latlng, {
+                    icon: L.divIcon({
+                        html: `<div class="custom-text-marker" style="color:${s.color}; font-weight:600; background:white; padding:6px 10px; border-radius:4px; font-size:${fontSize}px; white-space: nowrap; border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: move;">${escapeHtml(s.text)}</div>`,
+                        className: 'text-marker-wrapper',
+                        iconSize: null,
+                        iconAnchor: [0, 0]
+                    }),
+                    draggable: true
+                });
+                layer.on('dragend', () => {
+                    saveToUndoStack();
+                    saveState();
+                });
+            } else {
+                layer = L.marker(s.latlng);
+            }
+        } else if (s.type === 'circle') {
+            layer = L.circle(s.latlng, { radius: s.radius });
+        } else if (s.type === 'rectangle') {
+            layer = L.rectangle(s.latlngs);
+        } else if (s.type === 'polygon') {
+            layer = L.polygon(s.latlngs);
+        } else if (s.type === 'polyline') {
+            layer = L.polyline(s.latlngs);
+        }
+        if (layer) {
+            if (layer.setStyle) layer.setStyle({ color: s.color, fillColor: s.color, fillOpacity: 0.2 });
+            layer._customId = s.id;
+            drawnItems.addLayer(layer);
+            const layerData = { 
+                id: s.id, layer, type: s.type, color: s.color, text: s.text, fontSize: s.fontSize, 
+                iconClass: s.iconClass, iconSize: s.iconSize, rotation: s.rotation || 0, scale: s.scale || 1, 
+                name: s.name || 'Layer', visible: s.visible !== false 
+            };
+            layers.push(layerData);
+            
+            // Apply rotation and scale to icons
+            if (s.type === 'icon' && (s.rotation || (s.scale && s.scale !== 1))) {
+                setTimeout(() => applyIconTransform(layerData), 100);
+            }
+            
+            if (s.visible === false) drawnItems.removeLayer(layer);
+        }
+    });
+    updateLayersPanel();
+    saveState();
+}
+
+function searchLocation() {
+    const term = document.getElementById('search-input').value.trim();
+    if (!term) return;
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(term)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                map.setView([data[0].lat, data[0].lon], 15);
+            } else {
+                alert('Location not found');
+            }
+        })
+        .catch(() => alert('Error searching location'));
+}
+
+function addLegendItem(color, label) {
+    const container = document.getElementById('legend-items');
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `
+        <div class="legend-color" style="background:${color}"></div>
+        <input type="text" placeholder="Enter legend description" value="${label}">
+        <button><i class="fas fa-times"></i></button>
+    `;
+    container.appendChild(item);
+    
+    const input = item.querySelector('input');
+    const btn = item.querySelector('button');
+    const legendData = { color, label };
+    state.legendItems.push(legendData);
+    
+    input.oninput = e => {
+        legendData.label = e.target.value;
+        saveState();
+    };
+    btn.onclick = () => {
+        container.removeChild(item);
+        const idx = state.legendItems.indexOf(legendData);
+        if (idx !== -1) state.legendItems.splice(idx, 1);
+        saveState();
+    };
+    saveState();
+}
+
+function handleLogoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const preview = document.getElementById('logo-preview');
+        preview.style.backgroundImage = `url(${ev.target.result})`;
+        preview.classList.add('has-image');
+        preview.innerHTML = '';
+        state.companyLogo = ev.target.result;
+        if (!state.savedLogos.some(l => l.name === file.name)) {
+            state.savedLogos.push({ name: file.name, data: ev.target.result });
+            updateLogoDropdown();
+        }
+        saveState();
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleLogoSelect(e) {
+    const name = e.target.value;
+    if (!name) return;
+    const logo = state.savedLogos.find(l => l.name === name);
+    if (logo) {
+        const preview = document.getElementById('logo-preview');
+        preview.style.backgroundImage = `url(${logo.data})`;
+        preview.classList.add('has-image');
+        preview.innerHTML = '';
+        state.companyLogo = logo.data;
+        saveState();
+    }
+}
+
+function updateLogoDropdown() {
+    const select = document.getElementById('logo-select');
+    select.innerHTML = '<option value="">Select a saved logo</option>';
+    state.savedLogos.forEach(logo => {
+        const opt = document.createElement('option');
+        opt.value = logo.name;
+        opt.textContent = logo.name;
+        select.appendChild(opt);
+    });
+}
+
+function exportProject() {
+    const name = document.getElementById('project-name').value.trim();
+    if (!name) { alert('Please enter a project name'); return; }
+    const project = {
+        ...state,
+        mapView: { lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom() },
+        layers: layers.map(l => ({
+            id: l.id, type: l.type, color: l.color, text: l.text, name: l.name, visible: l.visible, fontSize: l.fontSize,
+            iconClass: l.iconClass, iconSize: l.iconSize, rotation: l.rotation, scale: l.scale,
+            latlng: l.layer.getLatLng ? l.layer.getLatLng() : null,
+            latlngs: l.layer.getLatLngs ? l.layer.getLatLngs() : null,
+            radius: l.layer.getRadius ? l.layer.getRadius() : null
+        })),
+        savedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importProject(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const project = JSON.parse(ev.target.result);
+            if (layers.length > 0 && !confirm('Importing will overwrite current work. Continue?')) return;
+            
+            Object.assign(state, project);
+            document.getElementById('project-name').value = project.projectName || '';
+            document.getElementById('project-description').value = project.description || '';
+            document.getElementById('page-number').value = project.pageNumber || 1;
+            document.getElementById('total-pages').value = project.totalPages || 1;
+            document.getElementById('company-name').value = project.companyName || '';
+            document.getElementById('company-address').value = project.companyAddress || '';
+            document.getElementById('drawn-by').value = project.drawnBy || '';
+            document.getElementById('date-drawn').value = project.dateDrawn || '';
+            
+            if (project.companyLogo) {
+                const preview = document.getElementById('logo-preview');
+                preview.style.backgroundImage = `url(${project.companyLogo})`;
+                preview.classList.add('has-image');
+                preview.innerHTML = '';
+            }
+            
+            updateLogoDropdown();
+            
+            // Clear legend container and rebuild from imported project (prevents duplicates)
+            const legendContainer = document.getElementById('legend-items');
+            legendContainer.innerHTML = '';
+            state.legendItems = []; // Clear the array before adding
+            if (project.legendItems) {
+                project.legendItems.forEach(item => addLegendItem(item.color, item.label));
+            }
+            
+            if (project.mapView) {
+                map.setView([project.mapView.lat, project.mapView.lng], project.mapView.zoom);
+            }
+            
+            drawnItems.clearLayers();
+            layers = [];
+            if (project.layers) {
+                restoreLayersFromSnapshot(project.layers);
+            }
+            
+            alert('Project imported successfully');
+        } catch (err) {
+            alert('Failed to import project');
+        }
+        e.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+function saveState() {
+    localStorage.setItem('permitMapEditorState', JSON.stringify(state));
+}
+
+function loadState() {
+    const saved = localStorage.getItem('permitMapEditorState');
+    if (!saved) return;
+    try {
+        const parsed = JSON.parse(saved);
+        Object.assign(state, parsed);
+        document.getElementById('project-name').value = state.projectName || '';
+        document.getElementById('project-description').value = state.description || '';
+        document.getElementById('page-number').value = state.pageNumber || 1;
+        document.getElementById('total-pages').value = state.totalPages || 1;
+        document.getElementById('company-name').value = state.companyName || '';
+        document.getElementById('company-address').value = state.companyAddress || '';
+        document.getElementById('drawn-by').value = state.drawnBy || '';
+        document.getElementById('date-drawn').value = state.dateDrawn || '';
+        
+        if (state.companyLogo) {
+            const preview = document.getElementById('logo-preview');
+            preview.style.backgroundImage = `url(${state.companyLogo})`;
+            preview.classList.add('has-image');
+            preview.innerHTML = '';
+        }
+        
+        updateLogoDropdown();
+        
+        // Clear legend container and rebuild from saved state (prevents duplicates)
+        const legendContainer = document.getElementById('legend-items');
+        legendContainer.innerHTML = '';
+        const savedLegendItems = [...state.legendItems]; // Save a copy
+        state.legendItems = []; // Clear the array
+        savedLegendItems.forEach(item => addLegendItem(item.color, item.label));
+    } catch (e) {}
+}
+
+function generatePdf() {
+    const canvas = document.createElement('canvas');
+    const size = map.getSize();
+    canvas.width = size.x;
+    canvas.height = size.y;
+    document.body.appendChild(canvas);
+    canvas.style.display = 'none';
+    
+    // Hide drawing overlays and markers (so they don't get desaturated)
+    const overlayPane = document.querySelector('.leaflet-overlay-pane');
+    const markerPane = document.querySelector('.leaflet-marker-pane');
+    const overlayStyle = overlayPane ? overlayPane.style.display : null;
+    const markerStyle = markerPane ? markerPane.style.display : null;
+    if (overlayPane) overlayPane.style.display = 'none';
+    if (markerPane) markerPane.style.display = 'none';
+    
+    html2canvas(document.getElementById('map'), { useCORS: true, allowTaint: true, scale: 2 })
+        .then(baseCanvas => {
+            // Restore overlay and marker visibility
+            if (overlayPane) overlayPane.style.display = overlayStyle || '';
+            if (markerPane) markerPane.style.display = markerStyle || '';
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(baseCanvas, 0, 0, canvas.width, canvas.height);
+            
+            // Desaturate base map
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
+                data[i] = gray + (data[i] - gray) * 0.3;
+                data[i+1] = gray + (data[i+1] - gray) * 0.3;
+                data[i+2] = gray + (data[i+2] - gray) * 0.3;
+            }
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Now draw our layers cleanly on top (only visible ones)
+            layers.filter(l => l.visible !== false).forEach(layerObj => {
+                const layer = layerObj.layer;
+                if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+                    ctx.strokeStyle = layer.options.color || '#ff0000';
+                    ctx.lineWidth = (layer.options.weight || 3) * 0.75; // Scale down for better PDF appearance
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.beginPath();
+                    const pts = layer.getLatLngs();
+                    pts.forEach((pt, i) => {
+                        const px = map.latLngToContainerPoint(pt);
+                        i === 0 ? ctx.moveTo(px.x, px.y) : ctx.lineTo(px.x, px.y);
+                    });
+                    ctx.stroke();
+                } else if (layer instanceof L.Polygon) {
+                    ctx.fillStyle = layer.options.fillColor || '#ff0000';
+                    ctx.strokeStyle = layer.options.color || '#ff0000';
+                    ctx.lineWidth = (layer.options.weight || 3) * 0.75; // Scale down for better PDF appearance
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.globalAlpha = layer.options.fillOpacity || 0.2;
+                    ctx.beginPath();
+                    const pts = layer.getLatLngs()[0];
+                    pts.forEach((pt, i) => {
+                        const px = map.latLngToContainerPoint(pt);
+                        i === 0 ? ctx.moveTo(px.x, px.y) : ctx.lineTo(px.x, px.y);
+                    });
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.stroke();
+                } else if (layer instanceof L.Circle) {
+                    const center = map.latLngToContainerPoint(layer.getLatLng());
+                    const edge = map.latLngToContainerPoint(L.latLng(
+                        layer.getLatLng().lat + layer.getRadius() / 111320,
+                        layer.getLatLng().lng
+                    ));
+                    const radius = Math.abs(edge.y - center.y);
+                    ctx.fillStyle = layer.options.fillColor || '#ff0000';
+                    ctx.globalAlpha = layer.options.fillOpacity || 0.2;
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = layer.options.color || '#ff0000';
+                    ctx.lineWidth = layer.options.weight || 1;
+                    ctx.globalAlpha = 1;
+                    ctx.stroke();
+                } else if (layer instanceof L.Marker) {
+                    // Draw markers with full vibrant color (not desaturated)
+                    const pos = map.latLngToContainerPoint(layer.getLatLng());
+                    if (layerObj.text) {
+                        // Text marker
+                        ctx.font = `600 ${layerObj.fontSize || 14}px sans-serif`;
+                        ctx.fillStyle = layerObj.color || '#000000';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(layerObj.text, pos.x, pos.y);
+                    } else if (layerObj.iconClass) {
+                        // Icon marker - draw with full vibrant color
+                        const iconSize = layerObj.iconSize || 32;
+                        const rotation = layerObj.rotation || 0;
+                        const scale = layerObj.scale || 1;
+                        const color = layerObj.color || '#ff0000';
+                        const size = iconSize * scale;
+                        
+                        ctx.save();
+                        ctx.translate(pos.x, pos.y);
+                        ctx.rotate(rotation * Math.PI / 180);
+                        
+                        // Draw a 5-point star with full vibrant color
+                        ctx.fillStyle = color;
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        
+                        const spikes = 5;
+                        const outerRadius = size / 2;
+                        const innerRadius = size / 4;
+                        
+                        ctx.beginPath();
+                        for (let i = 0; i < spikes * 2; i++) {
+                            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                            const angle = (i * Math.PI) / spikes - Math.PI / 2;
+                            const x = Math.cos(angle) * radius;
+                            const y = Math.sin(angle) * radius;
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        
+                        ctx.restore();
+                    }
+                }
+            });
+            
+            const mapImg = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+            
+            const pw = pdf.internal.pageSize.getWidth();
+            const ph = pdf.internal.pageSize.getHeight();
+            const m = 0.4;
+            const iw = pw - m * 2;
+            const ih = ph - m * 2;
+            
+            // Title box
+            const titleH = 0.5;
+            pdf.setFillColor(240, 240, 240);
+            pdf.rect(m, m, iw, titleH, 'F');
+            pdf.setDrawColor(0);
+            pdf.setLineWidth(0.01);
+            pdf.rect(m, m, iw, titleH);
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            const projName = document.getElementById('project-name').value || 'PROJECT NAME';
+            pdf.text(projName.toUpperCase(), pw / 2, m + titleH / 2 + 0.05, { align: 'center' });
+            
+            // Map box
+            const mapTop = m + titleH;
+            const mapH = ih - titleH - 2;
+            pdf.setLineWidth(0.01);
+            pdf.rect(m, mapTop, iw, mapH);
+            const mapInset = 0.2;
+            const mapW = iw - mapInset * 2;
+            const mapHt = mapH - mapInset * 2;
+            pdf.addImage(mapImg, 'PNG', m + mapInset, mapTop + mapInset, mapW, mapHt);
+            
+            // Compass
+            const cx = m + mapInset + mapW - 0.6;
+            const cy = mapTop + mapInset + 0.6;
+            const cs = 0.25;
+            pdf.setDrawColor(0);
+            pdf.setFillColor(255, 255, 255);
+            pdf.setLineWidth(0.01);
+            pdf.circle(cx, cy, cs, 'FD');
+            pdf.setLineWidth(0.015);
+            pdf.line(cx, cy - cs * 0.3, cx, cy - cs * 0.9);
+            pdf.line(cx, cy + cs * 0.3, cx, cy + cs * 0.9);
+            pdf.line(cx + cs * 0.3, cy, cx + cs * 0.9, cy);
+            pdf.line(cx - cs * 0.3, cy, cx - cs * 0.9, cy);
+            pdf.setFillColor(0);
+            pdf.circle(cx, cy, cs * 0.15, 'F');
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('N', cx - 0.03, cy - cs - 0.1);
+            pdf.text('S', cx - 0.03, cy + cs + 0.15);
+            pdf.text('E', cx + cs + 0.1, cy + 0.03);
+            pdf.text('W', cx - cs - 0.15, cy + 0.03);
+            
+            // Legend box
+            const legTop = mapTop + mapH;
+            const legH = 0.5;
+            pdf.setFillColor(240, 240, 240);
+            pdf.rect(m, legTop, iw, legH, 'F');
+            pdf.setLineWidth(0.01);
+            pdf.rect(m, legTop, iw, legH);
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text('LEGEND', m + iw / 2, legTop + 0.2, { align: 'center' });
+            
+            const legendItems = document.querySelectorAll('#legend-items .legend-item');
+            if (legendItems.length > 0) {
+                const itemY = legTop + 0.4;
+                const itemW = 1.2;
+                const startX = m + (iw - legendItems.length * itemW) / 2;
+                pdf.setFontSize(10);
+                legendItems.forEach((item, i) => {
+                    const colorBox = item.querySelector('.legend-color');
+                    const labelEl = item.querySelector('input');
+                    if (colorBox && labelEl) {
+                        const style = window.getComputedStyle(colorBox);
+                        const rgb = style.backgroundColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                        if (rgb) {
+                            const xPos = startX + i * itemW;
+                            pdf.setFillColor(parseInt(rgb[1]), parseInt(rgb[2]), parseInt(rgb[3]));
+                            pdf.rect(xPos, itemY - 0.15, 0.2, 0.15, 'F');
+                            pdf.setDrawColor(0);
+                            pdf.setLineWidth(0.01);
+                            pdf.rect(xPos, itemY - 0.15, 0.2, 0.15, 'S');
+                            pdf.text(labelEl.value, xPos + 0.25, itemY);
+                        }
+                    }
+                });
+            }
+            
+            // Footer box
+            const footTop = legTop + legH;
+            const footH = 1.3;
+            pdf.setLineWidth(0.01);
+            pdf.rect(m, footTop, iw, footH);
+            const logoW = 2;
+            const pageW = 2.1;
+            // Draw internal divider lines slightly inset to avoid corner overlap
+            const lineInset = 0.005; // Small inset to prevent corner doubling
+            pdf.line(m + iw - pageW, footTop + lineInset, m + iw - pageW, footTop + footH - lineInset);
+            pdf.line(m + logoW, footTop + lineInset, m + logoW, footTop + footH - lineInset);
+            
+            // Description
+            const descX = m + logoW + (iw - logoW - pageW) / 2;
+            const descY = footTop + footH / 2;
+            const desc = document.getElementById('project-description').value || 'DESCRIPTION';
+            pdf.setFontSize(10);
+            pdf.text(desc, descX, descY, { align: 'center', maxWidth: iw - logoW - pageW - 1 });
+            
+            // Page info
+            const piX = m + iw - pageW + 0.2;
+            const piY = footTop + 0.25;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            pdf.text(`Page ${document.getElementById('page-number').value} of ${document.getElementById('total-pages').value}`, piX, piY);
+            pdf.line(piX, piY + 0.1, m + iw - 0.2, piY + 0.1);
+            pdf.text('Drawn by:', piX, piY + 0.3);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(document.getElementById('drawn-by').value || 'N/A', piX + 0.7, piY + 0.3);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text('Date:', piX, piY + 0.5);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(document.getElementById('date-drawn').value || '', piX + 0.7, piY + 0.5);
+            
+            // Logo
+            if (state.companyLogo) {
+                const logoImg = new Image();
+                logoImg.src = state.companyLogo;
+                const timeout = setTimeout(() => {
+                    pdf.save(`${projName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.pdf`);
+                    document.body.removeChild(canvas);
+                }, 2000);
+                logoImg.onload = () => {
+                    clearTimeout(timeout);
+                    const lw = 0.7, lh = 0.7;
+                    const lx = m + (logoW - lw) / 2;
+                    const ly = footTop + 0.15;
+                    pdf.addImage(logoImg, 'JPEG', lx, ly, lw, lh);
+                    pdf.setFontSize(8);
+                    pdf.text(document.getElementById('company-name').value || '', m + logoW / 2, ly + lh + 0.15, { align: 'center' });
+                    if (document.getElementById('company-address').value) {
+                        pdf.setFontSize(7);
+                        pdf.text(document.getElementById('company-address').value, m + logoW / 2, ly + lh + 0.25, { align: 'center' });
+                    }
+                    pdf.save(`${projName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.pdf`);
+                    document.body.removeChild(canvas);
+                };
+                logoImg.onerror = () => {
+                    clearTimeout(timeout);
+                    pdf.setFontSize(9);
+                    pdf.text(document.getElementById('company-name').value || '', m + logoW / 2, footTop + 0.4, { align: 'center' });
+                    pdf.save(`${projName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.pdf`);
+                    document.body.removeChild(canvas);
+                };
+            } else {
+                pdf.setFontSize(9);
+                pdf.text(document.getElementById('company-name').value || '', m + logoW / 2, footTop + 0.4, { align: 'center' });
+                pdf.save(`${projName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.pdf`);
+                document.body.removeChild(canvas);
+            }
+        });
+}
+    </script>
+</body>
+</html>
