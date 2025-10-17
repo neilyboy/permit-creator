@@ -1486,19 +1486,35 @@ function generatePdf() {
     document.body.appendChild(canvas);
     canvas.style.display = 'none';
     
-    // Hide drawing overlays and markers (so they don't get desaturated)
+    // Step 1: Capture ONLY markers with full vibrant colors
     const overlayPane = document.querySelector('.leaflet-overlay-pane');
     const markerPane = document.querySelector('.leaflet-marker-pane');
+    const shadowPane = document.querySelector('.leaflet-shadow-pane');
     const overlayStyle = overlayPane ? overlayPane.style.display : null;
     const markerStyle = markerPane ? markerPane.style.display : null;
-    if (overlayPane) overlayPane.style.display = 'none';
-    if (markerPane) markerPane.style.display = 'none';
+    const shadowStyle = shadowPane ? shadowPane.style.display : null;
     
-    html2canvas(document.getElementById('map'), { useCORS: true, allowTaint: true, scale: 2 })
-        .then(baseCanvas => {
-            // Restore overlay and marker visibility
+    // Hide overlays and shadows, keep only markers visible
+    if (overlayPane) overlayPane.style.display = 'none';
+    if (shadowPane) shadowPane.style.display = 'none';
+    
+    // Capture markers with transparent background
+    html2canvas(document.getElementById('map'), { useCORS: true, allowTaint: true, scale: 2, backgroundColor: null })
+        .then(markerCanvas => {
+            // Step 2: Now hide markers and show overlays to capture base map
+            if (markerPane) markerPane.style.display = 'none';
             if (overlayPane) overlayPane.style.display = overlayStyle || '';
-            if (markerPane) markerPane.style.display = markerStyle || '';
+            
+            return html2canvas(document.getElementById('map'), { useCORS: true, allowTaint: true, scale: 2 })
+                .then(baseCanvas => {
+                    // Restore everything
+                    if (markerPane) markerPane.style.display = markerStyle || '';
+                    if (shadowPane) shadowPane.style.display = shadowStyle || '';
+                    
+                    return { baseCanvas, markerCanvas };
+                });
+        })
+        .then(({ baseCanvas, markerCanvas }) => {
             
             const ctx = canvas.getContext('2d');
             ctx.drawImage(baseCanvas, 0, 0, canvas.width, canvas.height);
@@ -1562,57 +1578,20 @@ function generatePdf() {
                     ctx.lineWidth = layer.options.weight || 1;
                     ctx.globalAlpha = 1;
                     ctx.stroke();
-                } else if (layer instanceof L.Marker) {
-                    // Draw markers with full vibrant color (not desaturated)
+                } else if (layer instanceof L.Marker && layerObj.text) {
+                    // Only draw text markers here (icons come from markerCanvas)
                     const pos = map.latLngToContainerPoint(layer.getLatLng());
-                    if (layerObj.text) {
-                        // Text marker
-                        ctx.font = `600 ${layerObj.fontSize || 14}px sans-serif`;
-                        ctx.fillStyle = layerObj.color || '#000000';
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'top';
-                        ctx.fillText(layerObj.text, pos.x, pos.y);
-                    } else if (layerObj.iconClass) {
-                        // Icon marker - draw with full vibrant color
-                        const iconSize = layerObj.iconSize || 32;
-                        const rotation = layerObj.rotation || 0;
-                        const scale = layerObj.scale || 1;
-                        const color = layerObj.color || '#ff0000';
-                        const size = iconSize * scale;
-                        
-                        ctx.save();
-                        ctx.translate(pos.x, pos.y);
-                        ctx.rotate(rotation * Math.PI / 180);
-                        
-                        // Draw a 5-point star with full vibrant color
-                        ctx.fillStyle = color;
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 2;
-                        
-                        const spikes = 5;
-                        const outerRadius = size / 2;
-                        const innerRadius = size / 4;
-                        
-                        ctx.beginPath();
-                        for (let i = 0; i < spikes * 2; i++) {
-                            const radius = i % 2 === 0 ? outerRadius : innerRadius;
-                            const angle = (i * Math.PI) / spikes - Math.PI / 2;
-                            const x = Math.cos(angle) * radius;
-                            const y = Math.sin(angle) * radius;
-                            if (i === 0) {
-                                ctx.moveTo(x, y);
-                            } else {
-                                ctx.lineTo(x, y);
-                            }
-                        }
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-                        
-                        ctx.restore();
-                    }
+                    ctx.font = `600 ${layerObj.fontSize || 14}px sans-serif`;
+                    ctx.fillStyle = layerObj.color || '#000000';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(layerObj.text, pos.x, pos.y);
                 }
+                // Icon markers will be composited from markerCanvas with full color
             });
+            
+            // Composite the marker canvas on top (contains actual MDI icons with full color!)
+            ctx.drawImage(markerCanvas, 0, 0, canvas.width, canvas.height);
             
             const mapImg = canvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
