@@ -1695,12 +1695,25 @@ function generatePdf() {
             pdf.line(m + iw - pageW, footTop + lineInset, m + iw - pageW, footTop + footH - lineInset);
             pdf.line(m + logoW, footTop + lineInset, m + logoW, footTop + footH - lineInset);
             
-            // Description
-            const descX = m + logoW + (iw - logoW - pageW) / 2;
-            const descY = footTop + footH / 2;
+            // Description (with proper text wrapping and vertical centering)
             const desc = document.getElementById('project-description').value || 'DESCRIPTION';
+            const descBoxWidth = iw - logoW - pageW - 0.4; // Available width with padding
             pdf.setFontSize(10);
-            pdf.text(desc, descX, descY, { align: 'center', maxWidth: iw - logoW - pageW - 1 });
+            pdf.setFont('helvetica', 'normal');
+            
+            // Split text into lines that fit the box width
+            const descLines = pdf.splitTextToSize(desc, descBoxWidth);
+            const lineHeight = 0.15; // Line height in inches
+            const totalTextHeight = descLines.length * lineHeight;
+            
+            // Calculate starting Y to center the text block vertically
+            const descStartY = footTop + (footH - totalTextHeight) / 2 + lineHeight * 0.7;
+            const descX = m + logoW + (iw - logoW - pageW) / 2;
+            
+            // Draw each line centered
+            descLines.forEach((line, i) => {
+                pdf.text(line, descX, descStartY + i * lineHeight, { align: 'center' });
+            });
             
             // Page info
             const piX = m + iw - pageW + 0.2;
